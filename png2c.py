@@ -1,4 +1,4 @@
-#!/usr/bin/python2.7
+#!/usr/bin/env python3
 import sys
 import png
 import curses.ascii
@@ -10,7 +10,9 @@ if len(sys.argv) < 2:
 reader = png.Reader(filename=sys.argv[1])
 data = reader.asRGB()
 size = data[:2] # get image width and height
-char_size = (size[0] / 16, size[1] / 16) # 16 characters in a row, 16 rows of characters
+char_width = int(size[0] / 16)
+char_height = int(size[1] / 16)
+char_size = (char_width, char_height) # 16 characters in a row, 16 rows of characters
 bitmap = list(data[2]) # get image RGB values
 
 sys.stdout.write("""#include "font.h"
@@ -46,15 +48,17 @@ for line in bitmap:
 char_bitmaps = [] 
 for c in range(256): # for each character
     char_bitmap = []
-    raster_row = (c / 16) * char_size[1]
-    offset = (c % 16) * char_size[0]
-    for y in range(char_size[1]): # for each scan line of the character
-        char_bitmap.append(raster[raster_row + y][offset : offset + char_size[0]])
+    raster_row = int(int(c / 16) * char_height)
+    offset = int(int(c % 16) * char_width)
+    for y in range(char_height): # for each scan line of the character
+        rr = raster_row + y
+        cc = offset
+        char_bitmap.append(raster[rr][cc : cc + char_width])
     char_bitmaps.append(char_bitmap)
 raster = None # no longer required
 
 # how many bytes a single character scan line should be
-num_bytes_per_scanline = (char_size[0] + 7) / 8
+num_bytes_per_scanline = int(int(char_width + 7) / 8)
 
 # convert the whole bitmap into an array of character bitmaps
 char_bitmaps_processed = []
@@ -68,7 +72,7 @@ for c in range(len(char_bitmaps)):
             char_byte = 0
             mask = 0x80
             for x in range(8):
-                if b * 8 + x >= char_size[0]:
+                if b * 8 + x >= char_width:
                     break
                 if line[offset + x]:
                     char_byte += mask
