@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
 import sys
 import png
+import argparse
 
-if len(sys.argv) < 2:
-    sys.stderr.write("Please specify the input PNG file\n")
-    sys.exit(1)
+# if len(sys.argv) < 2:
+#     sys.stderr.write("Please specify the input PNG file\n")
+#     sys.exit(1)
 
-reader = png.Reader(filename=sys.argv[1])
+parser = argparse.ArgumentParser(description='Convert PNG font image to a C array.')
+
+parser.add_argument('filename', metavar='png_filepath', type=str,
+                    help='Input PNG image with a bitmap of an 8x8 matrix of 256 adjacent characters')
+parser.add_argument('-c', '--columns', action='store_true',
+                    help='Produce the columns of the chars instead of their rows')
+
+args = parser.parse_args()
+
+reader = png.Reader(filename=args.filename)
 data = reader.asRGB()
 size = data[:2] # get image width and height
 char_width = int(size[0] / 16)
 char_height = int(size[1] / 16)
 char_size = (char_width, char_height) # 16 characters in a row, 16 rows of characters
 bitmap = list(data[2]) # get image RGB values
+
+rowcolmode = "column" if args.columns else "row"
 
 sys.stdout.write("""#include "font.h"
 
@@ -33,7 +45,10 @@ extern const font_t console_fonts[];
 
 #endif /* FONT_H_ */
 #endif
-""")
+
+/* %s mode: the array contains the %ss of the chars */
+
+""" % (rowcolmode, rowcolmode))
 
 sys.stdout.write("""unsigned char console_font_%dx%d[] = {
 """ % char_size)
@@ -49,10 +64,16 @@ for c in range(256): # for each character
     char_bitmap = []
     raster_row = int(int(c / 16) * char_height)
     offset = int(int(c % 16) * char_width)
-    for y in range(char_height): # for each scan line of the character
-        rr = raster_row + y
-        cc = offset
-        char_bitmap.append(raster[rr][cc : cc + char_width])
+    if args.columns:
+        for x in range(char_width): # for each column of the character
+            char_col = []
+            for y in range(char_height - 1, -1, -1):
+                char_col.append(raster[raster_row + y][offset + x])
+            char_bitmap.append(char_col)
+    else:
+        for y in range(char_height): # for each scan line of the character
+            rr = raster_row + y
+            char_bitmap.append(raster[rr][offset : offset + char_width])
     char_bitmaps.append(char_bitmap)
 raster = None # no longer required
 
