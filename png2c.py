@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import sys
 import png
-import curses.ascii
 
 if len(sys.argv) < 2:
     sys.stderr.write("Please specify the input PNG file\n")
@@ -82,12 +81,28 @@ for c in range(len(char_bitmaps)):
     char_bitmaps_processed.append([c, encoded_lines])
 char_bitmaps = None
 
+def _ctoi(c):
+    if type(c) == type(""):
+        return ord(c)
+    else:
+        return c
+
+def printable_char(ch):
+    ich = _ctoi(ch)
+    if 32 <= ich <= 126:
+        if ich == 34:
+            return "\\\""
+        else:
+            return chr(ich)
+    return "\\{value:03o}".format(value=ich)
+
 for c in char_bitmaps_processed:
+    ch = c[0]
     sys.stdout.write("""
     /*
      * code=%d, hex=0x%02X, ascii="%s"
      */
-""" % (c[0], c[0], curses.ascii.unctrl(c[0])))
+""" % (ch, ch, printable_char(ch)))
     for line in c[1]:
         sys.stdout.write("    ")
         for char_byte in line[0]:
